@@ -21,6 +21,10 @@ func (n Node) IsReady() bool {
 	return len(n.Previous) == 0
 }
 
+func (n Node) String() string {
+	return fmt.Sprintf("node:", n.Id, n.IsProcessing, n.Duration)
+}
+
 func main() {
 	file, err := os.Open("./input.txt")
 	if err != nil {
@@ -35,20 +39,21 @@ func main() {
 		previousNodeId, nextNodeId := process(a)
 		populateMap(nodeMap, previousNodeId, nextNodeId)
 	}
-	fmt.Println(getSteps(nodeMap, 1))
+	fmt.Println(getSteps(nodeMap, 5))
 }
 
 func populateMap(nodeMap map[string]*Node, previousNodeId, nextNodeId string) {
 	previousNode, ok := nodeMap[previousNodeId]
+	offset := 4
 	if !ok {
-		duration := int(previousNodeId[0]) - 4
+		duration := int(previousNodeId[0]) - offset
 		previousNode = &Node{Id: previousNodeId, Next: []*Node{}, Previous: []*Node{}, IsProcessing: false, IsProcessed: false, Duration: duration}
 		nodeMap[previousNodeId] = previousNode
 	}
 
 	nextNode, ok := nodeMap[nextNodeId]
 	if !ok {
-		var duration int = int(nextNodeId[0]) - 4
+		var duration = int(nextNodeId[0]) - offset
 		nextNode = &Node{Id: nextNodeId, Next: []*Node{}, Previous: []*Node{}, IsProcessed: false, Duration: duration}
 		nodeMap[nextNodeId] = nextNode
 	}
@@ -58,19 +63,23 @@ func populateMap(nodeMap map[string]*Node, previousNodeId, nextNodeId string) {
 
 func getSteps(nodeMap map[string]*Node, workersCount int) string {
 	outputString := ""
+	counter := 0
 	processingNodes := []*Node{}
 	for {
 		readyNodes := getReadyNodes(nodeMap)
-		nodes := []*Node{}
 		if len(readyNodes) != 0 {
-			nodes = getNodesToProcess(readyNodes, workersCount - len(processingNodes))
+			if len(processingNodes) < workersCount {
+				nodesToBeProcessed := getNodesToProcess(readyNodes, workersCount-len(processingNodes))
+				processingNodes = append(processingNodes, nodesToBeProcessed...)
+			}
 		}
-		processingNodes = append(processingNodes, nodes...)
 		if len(processingNodes) == 0 {
+			fmt.Println(counter)
 			return outputString
 		}
+		counter++
+		processingNodesForNextIteration := []*Node{}
 		for _, node := range processingNodes {
-			fmt.Println(node)
 			node.Duration = node.Duration - 1
 			node.IsProcessing = true
 			if node.Duration == 0 {
@@ -79,19 +88,11 @@ func getSteps(nodeMap map[string]*Node, workersCount int) string {
 				}
 				node.IsProcessed = true
 				outputString += node.Id
-			}
-		}
-		tempProcessingNodes := []*Node{}
-		for _, n := range processingNodes {
-			if !n.IsProcessed {
-				tempProcessingNodes = append(tempProcessingNodes, n)
-				//fmt.Println(n)
 			} else {
-				//fmt.Println("done with ", n)
+				processingNodesForNextIteration = append(processingNodesForNextIteration, node)
 			}
 		}
-		processingNodes = tempProcessingNodes
-		//fmt.Println("iteration over")
+		processingNodes = processingNodesForNextIteration
 	}
 }
 
@@ -106,27 +107,25 @@ func getReadyNodes(nodeMap map[string]*Node) []*Node {
 }
 
 func filter(nodes []*Node, node Node) []*Node {
-	if len(nodes) == 0 {
-		return []*Node{}
-	}
-	temp := nodes[:0]
+	filteredNodes := nodes[:0]
 	for _, n := range nodes {
 		if n.Id != node.Id {
-			temp = append(temp, n)
+			filteredNodes = append(filteredNodes, n)
 		}
 	}
-	return temp
+	return filteredNodes
 }
 
 func getNodesToProcess(nodes []*Node, count int) []*Node {
+	if count == 0 {
+		return []*Node{}
+	}
 	if len(nodes) == 1 {
 		return nodes
 	}
 	sort.Slice(nodes, func(i, j int) bool {
 		return nodes[i].Id < nodes[j].Id
 	})
-	//fmt.Println(len(nodes))
-	//fmt.Println(count)
 	if len(nodes) <= count {
 		return nodes
 	}
